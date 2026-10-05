@@ -1,0 +1,52 @@
+name: Build Kernel
+on: workflow_dispatch
+
+env:
+  DEFCONFIG: vendor/ginkgo-perf_defconfig
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libncurses-dev zip \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+      - name: Get clang
+        run: git clone --depth=1 https://github.com/kdrag0n/proton-clang $HOME/clang
+
+      - name: Configure
+        run: |
+          export PATH=$HOME/clang/bin:$PATH
+          make O=out ARCH=arm64 $DEFCONFIG
+          S=scripts/config
+          $S --file out/.config -d MODULE_SIG -d MODULE_SIG_FORCE -d MODULE_SIG_ALL
+          $S --file out/.config -e MODULE_FORCE_LOAD -e MODULE_FORCE_UNLOAD -e MODULE_UNLOAD
+          $S --file out/.config -e IKCONFIG -e IKCONFIG_PROC
+          make O=out ARCH=arm64 olddefconfig
+          grep -E "MODULE_SIG|MODVERSIONS|FORCE_LOAD" out/.config
+
+      - name: Build
+        run: |
+          export PATH=$HOME/clang/bin:$PATH
+          make -j$(nproc) O=out ARCH=arm64 CC=clang LD=ld.lld \
+            CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+
+      - name: Package
+        run: |
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 ak3
+          cp out/arch/arm64/boot/Image.gz-dtb ak3/ || cp out/arch/arm64/boot/Image.gz ak3/
+          sed -i 's/^do.devicecheck=.*/do.devicecheck=1/; s/^device.name1=.*/device.name1=ginkgo/; s/^device.name2=.*/device.name2=willow/' ak3/anykernel.sh
+          sed -i 's|^block=.*|block=/dev/block/bootdevice/by-name/boot;|; s|^is_slot_device=.*|is_slot_device=0;|' ak3/anykernel.sh
+          cd ak3 && zip -r9 ../kernel.zip . -x ".git*"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kernel
+          path: |
+            kernel.zip
+            out/.config
