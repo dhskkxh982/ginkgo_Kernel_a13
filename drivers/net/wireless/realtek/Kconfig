@@ -1,4 +1,4 @@
-source WLAN_VENDOR_REALTEK
+config WLAN_VENDOR_REALTEK
 	bool "Realtek devices"
 	default y
 	---help---
