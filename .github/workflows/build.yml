@@ -33,15 +33,16 @@ jobs:
           import re
           p = 'kernel/module.c'
           s = open(p).read()
-          n = 0
+          total = 0
           for name in ('check_version', 'check_modstruct_version'):
-              m = re.search(r'static int ' + name + r'\([^)]*\)\s*\{', s)
-              if not m:
+              pat = re.compile(r'static (?:inline )?int ' + name + r'\([^)]*\)\s*\{')
+              found = len(pat.findall(s))
+              if found == 0:
                   raise SystemExit('NOT FOUND: ' + name)
-              s = s[:m.end()] + '\n\tif (1) return 1;\n' + s[m.end():]
-              n += 1
+              s = pat.sub(lambda m: m.group(0) + '\n\tif (1) return 1;\n', s)
+              print(name, 'patched', found)
+              total += found
           open(p, 'w').write(s)
-          print('patched', n, 'functions')
           EOF
           grep -n "if (1) return 1;" kernel/module.c
 
