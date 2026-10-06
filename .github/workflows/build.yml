@@ -19,6 +19,15 @@ jobs:
       - name: Get clang
         run: git clone --depth=1 https://github.com/kdrag0n/proton-clang $HOME/clang
 
+      - name: Find polly
+        run: |
+          echo "=== polly in Makefile files ==="
+          grep -rn "polly" Makefile arch/arm64/Makefile scripts/Makefile* 2>/dev/null || echo "none in main Makefiles"
+          echo "=== polly anywhere (Makefile/Kconfig/mk) ==="
+          grep -rIn "polly" --include="Makefile*" --include="Kconfig*" --include="*.mk" . 2>/dev/null | head -50 || true
+          echo "=== polly in defconfig ==="
+          grep -in "polly" arch/arm64/configs/$DEFCONFIG || echo "none in defconfig"
+
       - name: Configure
         run: |
           export PATH=$HOME/clang/bin:$PATH
