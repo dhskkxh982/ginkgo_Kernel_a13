@@ -27,6 +27,24 @@ jobs:
       - name: Fix version suffix
         run: touch .scmversion
 
+      - name: Relax module version checks
+        run: |
+          python3 - <<'EOF'
+          import re
+          p = 'kernel/module.c'
+          s = open(p).read()
+          n = 0
+          for name in ('check_version', 'check_modstruct_version'):
+              m = re.search(r'static int ' + name + r'\([^)]*\)\s*\{', s)
+              if not m:
+                  raise SystemExit('NOT FOUND: ' + name)
+              s = s[:m.end()] + '\n\tif (1) return 1;\n' + s[m.end():]
+              n += 1
+          open(p, 'w').write(s)
+          print('patched', n, 'functions')
+          EOF
+          grep -n "if (1) return 1;" kernel/module.c
+
       - name: Configure
         run: |
           export PATH=$HOME/clang/bin:$PATH
@@ -34,7 +52,6 @@ jobs:
           S=scripts/config
           $S --file out/.config -d LLVM_POLLY
           $S --file out/.config -d WIREGUARD
-          $S --file out/.config -d CC_STACKPROTECTOR_STRONG -d CC_STACKPROTECTOR_REGULAR -e CC_STACKPROTECTOR_NONE
           make O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- olddefconfig
           grep -E "MODULE_SIG|MODVERSIONS|FORCE_LOAD|STACKPROTECTOR|POLLY|WIREGUARD|LOCALVERSION" out/.config
 
@@ -46,8 +63,7 @@ jobs:
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            KCFLAGS="-fno-stack-protector"
+            CLANG_TRIPLE=aarch64-linux-gnu-
           strings out/arch/arm64/boot/Image | grep -m1 "Linux version" || true
 
       - name: Package
