@@ -51,9 +51,41 @@ jobs:
       - name: Package
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 ak3
-          cp out/arch/arm64/boot/Image.gz-dtb ak3/ || cp out/arch/arm64/boot/Image.gz ak3/
-          sed -i 's/^do.devicecheck=.*/do.devicecheck=1/; s/^device.name1=.*/device.name1=ginkgo/; s/^device.name2=.*/device.name2=willow/' ak3/anykernel.sh
-          sed -i 's|^block=.*|block=/dev/block/bootdevice/by-name/boot;|; s|^is_slot_device=.*|is_slot_device=0;|' ak3/anykernel.sh
+          rm -rf ak3/.git ak3/README.md ak3/ramdisk ak3/patch ak3/modules
+          cp out/arch/arm64/boot/Image.gz-dtb ak3/ 2>/dev/null || cp out/arch/arm64/boot/Image.gz ak3/
+          cat > ak3/anykernel.sh <<'EOF'
+          # AnyKernel3 Ramdisk Mod Script
+          properties() { '
+          kernel.string=Ginkgo Custom Kernel
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=0
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=ginkgo
+          device.name2=willow
+          device.name3=
+          device.name4=
+          device.name5=
+          supported.versions=
+          supported.patchlevels=
+          supported.vendorpatchlevels=
+          '; }
+
+          BLOCK=/dev/block/bootdevice/by-name/boot;
+          IS_SLOT_DEVICE=0;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          . tools/ak3-core.sh;
+
+          set_perm_recursive 0 0 755 644 $RAMDISK/*;
+          set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
+
+          dump_boot;
+          write_boot;
+          EOF
+          sed -i 's/^          //' ak3/anykernel.sh
           cd ak3 && zip -r9 ../kernel.zip . -x ".git*"
 
       - uses: actions/upload-artifact@v4
