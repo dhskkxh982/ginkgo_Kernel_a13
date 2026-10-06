@@ -27,8 +27,9 @@ jobs:
           $S --file out/.config -d MODULE_SIG -d MODULE_SIG_FORCE -d MODULE_SIG_ALL
           $S --file out/.config -e MODULE_FORCE_LOAD -e MODULE_FORCE_UNLOAD -e MODULE_UNLOAD
           $S --file out/.config -e IKCONFIG -e IKCONFIG_PROC
+          $S --file out/.config -d CC_STACKPROTECTOR_STRONG -d CC_STACKPROTECTOR_REGULAR -e CC_STACKPROTECTOR_NONE
           make O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- olddefconfig
-          grep -E "MODULE_SIG|MODVERSIONS|FORCE_LOAD" out/.config
+          grep -E "MODULE_SIG|MODVERSIONS|FORCE_LOAD|STACKPROTECTOR" out/.config
 
       - name: Build
         run: |
@@ -38,7 +39,8 @@ jobs:
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            CLANG_TRIPLE=aarch64-linux-gnu-
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            KCFLAGS="-fno-stack-protector"
 
       - name: Package
         run: |
