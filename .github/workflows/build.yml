@@ -22,19 +22,23 @@ jobs:
       - name: Configure
         run: |
           export PATH=$HOME/clang/bin:$PATH
-          make O=out ARCH=arm64 $DEFCONFIG
+          make O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- $DEFCONFIG
           S=scripts/config
           $S --file out/.config -d MODULE_SIG -d MODULE_SIG_FORCE -d MODULE_SIG_ALL
           $S --file out/.config -e MODULE_FORCE_LOAD -e MODULE_FORCE_UNLOAD -e MODULE_UNLOAD
           $S --file out/.config -e IKCONFIG -e IKCONFIG_PROC
-          make O=out ARCH=arm64 olddefconfig
+          make O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- olddefconfig
           grep -E "MODULE_SIG|MODVERSIONS|FORCE_LOAD" out/.config
 
       - name: Build
         run: |
           export PATH=$HOME/clang/bin:$PATH
-          make -j$(nproc) O=out ARCH=arm64 CC=clang LD=ld.lld \
-            CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          make -j$(nproc) O=out ARCH=arm64 \
+            CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package
         run: |
